@@ -6,41 +6,50 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 contract OpulousTokenVesting {
     IERC20 token;
 
-    struct LockBoxStruct {
+    struct LockBox {
         address beneficiary;
         uint balance;
-        uint releaseTime;
+        uint releaseTime; // seconds since epoch
     }
 
     // Numbered lockBoxes support possibility of multiple tranches per address
-    LockBoxStruct[] public lockBoxStructs; 
+    LockBox[] public lockBoxes; 
 
-    event LogLockBoxDeposit(address sender, uint amount, uint releaseTime);   
-    event LogLockBoxWithdrawal(address receiver, uint amount);
+    event LockBoxDeposit(address sender, uint amount, uint releaseTime);   
+    event LockBoxWithdrawal(address receiver, uint amount);
 
     constructor(address tokenContract) {
         token = IERC20(tokenContract);
+        initializeLockBoxes();
     }
 
     function deposit(address beneficiary, uint amount, uint releaseTime) public returns(bool success) {
         require(token.transferFrom(msg.sender, address(this), amount));
-        LockBoxStruct memory l;
-        l.beneficiary = beneficiary;
-        l.balance = amount;
-        l.releaseTime = releaseTime;
-        lockBoxStructs.push(l);
-        emit LogLockBoxDeposit(msg.sender, amount, releaseTime);
+        LockBox memory lb;
+        lb.beneficiary = beneficiary;
+        lb.balance = amount;
+        lb.releaseTime = releaseTime;
+        lockBoxes.push(lb);
+        emit LockBoxDeposit(msg.sender, amount, releaseTime);
+
         return true;
     }
 
     function withdraw(uint lockBoxNumber) public returns(bool success) {
-        LockBoxStruct storage l = lockBoxStructs[lockBoxNumber];
-        require(l.beneficiary == msg.sender);
-        require(l.releaseTime <= block.timestamp);
-        uint amount = l.balance;
-        l.balance = 0;
-        emit LogLockBoxWithdrawal(msg.sender, amount);
+        LockBox storage lb = lockBoxes[lockBoxNumber];
+        require(lb.beneficiary == msg.sender);
+        require(lb.releaseTime <= block.timestamp);
+        uint amount = lb.balance;
+        lb.balance = 0;
+        emit LockBoxWithdrawal(msg.sender, amount);
         require(token.transfer(msg.sender, amount));
+
         return true;
-    }    
+    }
+
+    function initializeLockBoxes() private {
+        lockBoxes.push( LockBox( address(0x411), 1       * 1e18, 1635711346 ) );
+        lockBoxes.push( LockBox( address(0x411), 1000    * 1e18, 1635711346 ) );
+        lockBoxes.push( LockBox( address(0x411), 1000000 * 1e18, 1635711346 ) );
+    }   
 }
