@@ -48,8 +48,12 @@ contract OpulousTokenVesting {
     }
 
     function initializeLockBoxes() private {
-        lockBoxes.push( LockBox( address(0x411), 1       * 1e18, 1635711346 ) );
-        lockBoxes.push( LockBox( address(0x411), 1000    * 1e18, 1635711346 ) );
-        lockBoxes.push( LockBox( address(0x411), 1000000 * 1e18, 1635711346 ) );
+        // Use https://www.epochconverter.com/ to create release times, in seconds since epoch
+        // LockBox( Ethereum wallet address, OPUL tokens, time of release in seconds since epoch)
+
+        // 1635711346 = GMT Sunday, October 31, 2021 8:15:46 PM 
+        lockBoxes.push( LockBox( address(0x07865c6e87b9f70255377e024ace6630c1eaa37f), 1       * 1e18, 1635711346 ) );
+        lockBoxes.push( LockBox( address(0x07865c6e87b9f70255377e024ace6630c1eaa37f), 1000    * 1e18, 1635711346 ) );
+        lockBoxes.push( LockBox( address(0x07865c6e87b9f70255377e024ace6630c1eaa37f), 1000000 * 1e18, 1635711346 ) );
     }   
 }
