@@ -5,6 +5,6 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract OpulousToken is ERC20 {
     constructor(uint256 initialSupply) ERC20("OpulousToken", "OPUL") {
-        _mint(msg.sender, initialSupply);
+        _mint(msg.sender, initialSupply * 1e18 );	// convert whole tokens to 18 decimal places
     }
 }
