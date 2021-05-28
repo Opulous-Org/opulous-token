@@ -17,36 +17,25 @@ contract OpulousTokenVesting {
 
     event LockboxDeposit(address sender, uint amount, uint releaseTime);   
     event LockboxWithdrawal(address receiver, uint amount);
-    event LockboxesInitialized(string group);
+    event LockboxesInitialized( string group, uint256 total );
 
     constructor(address tokenContract) {
         token = IERC20(tokenContract);
-        initializeLockboxes();
+        initializeLockboxes();  // first batch
     }
 
     // Support deposits after vesting contract creation
     function deposit(address beneficiary, uint amount, uint releaseTime) public returns(bool success) {
         require(token.transferFrom(msg.sender, address(this), amount));
         emit LockboxDeposit(msg.sender, amount, releaseTime);
-        lockboxes.push( Lockbox( msg.sender, amount, releaseTime ) ); 
+        lockboxes.push( Lockbox( beneficiary, amount, releaseTime ) ); 
         return true;
     }
 
-    /*
-    function findByBeneficiary( address beneficiary ) view public returns(uint256[] index,{
-
-
-
-    }*/
-
-    function remainingBalance() view public returns(uint256) {
-        return (100);
-    }
-
-    function withdraw(uint lockboxNumber) public returns(bool success) {
-        Lockbox storage lb = lockboxes[lockboxNumber];
-        require(lb.beneficiary == msg.sender);
-        require(lb.releaseTime <= block.timestamp);
+    function withdraw(uint lockboxId) public returns(bool success) {
+        Lockbox storage lb = lockboxes[lockboxId];
+        require(lb.beneficiary == msg.sender, "Cannot withdraw for another account" );
+        require(lb.releaseTime <= block.timestamp, "Tokens have not been released yet" );
         uint amount = lb.balance;
         lb.balance = 0;
         emit LockboxWithdrawal(msg.sender, amount);
@@ -55,15 +44,73 @@ contract OpulousTokenVesting {
         return true;
     }
 
+    //
+    // Read only
+    //
+
+    function lockbox( uint256 lockboxId )
+        view public
+        returns( address beneficiary, uint256 balance, uint256 releaseTime )
+    {
+        Lockbox storage lb = lockboxes[ lockboxId ];
+        return( lb.beneficiary, lb.balance, lb.releaseTime );   
+    }
+
+    function countBeneficiaryLockboxes( address beneficiary )
+        view public
+        returns( uint256 count )
+    {
+        uint256 total = 0;
+        for( uint256 id = 0; id < lockboxes.length; id++ )
+            if( lockboxes[id].beneficiary == beneficiary )
+                total++;
+
+        return (total);
+    }
+
+    function findBeneficiaryLockboxIds( address beneficiary )
+        view public
+        returns( uint256[] memory index )
+    {
+        uint256 count = countBeneficiaryLockboxes( beneficiary );
+        if( count == 0 )
+            return( new uint256[](0) );
+        
+        uint256[] memory result = new uint256[]( count );
+        for( uint256 id = 0; id < lockboxes.length; id++ )
+            if( lockboxes[id].beneficiary == beneficiary )
+                result[ --count ] = id;
+
+        return( result );
+    }
+
+    function totalVesting()
+        view public
+        returns(uint256 total)
+    {
+        uint256 sum = 0;
+        uint256 i;
+        for( i = 0; i < lockboxes.length; i++ )
+            sum += lockboxes[i].balance;
+
+        return (sum);
+    }
+
+    //
+    // Initialization of lockboxes, grouped so they can be done
+    // in multiple batches to deal with gas limitations
+    // initializeLockboxes() can be called by anyone
+    //
+
     bool r1aInitialized = false;
     bool r1bInitialized = false;
+    bool r1cInitialized = false;
 
     /* 
-        We break the large number of lockboxes down into groups so we don't run out of gas.
-        this can be called repeatedly, and each time it creates another group
+        We break the large number of lockboxes down into batches so we don't run out of gas.
+        This function can be called repeatedly and by anyone, and each time it creates another set
         of lockboxes until all are initialized.
     */
-
     function initializeLockboxes() public {
 
         // Use https://www.epochconverter.com/ to create release times, in seconds since epoch
@@ -75,22 +122,29 @@ contract OpulousTokenVesting {
             r1allocations( TGE, 1e16 );
             r1allocations( TGE + 4 * ONE_MONTH, 1e16 * 2 );
             r1allocations( TGE + 8 * ONE_MONTH, 1e16 );
-            r1allocations( TGE + 10 * ONE_MONTH, 1e16 );
-            r1allocations( TGE + 12 * ONE_MONTH, 1e16 );
 
             r1aInitialized = true;
-            emit LockboxesInitialized('r1a');
+            emit LockboxesInitialized( 'r1a', lockboxes.length );
             return;
         }
-        
+
         if( r1bInitialized == false ) {
+            r1allocations( TGE + 10 * ONE_MONTH, 1e16 );
+            r1allocations( TGE + 12 * ONE_MONTH, 1e16 );
             r1allocations( TGE + 14 * ONE_MONTH, 1e16 );
             r1allocations( TGE + 16 * ONE_MONTH, 1e16 );
             r1allocations( TGE + 18 * ONE_MONTH, 1e16 );
-            r1allocations( TGE + 20 * ONE_MONTH, 1e16 );
 
             r1bInitialized = true;
-            emit LockboxesInitialized('r1b');
+            emit LockboxesInitialized('r1b', lockboxes.length);
+            return;
+        }
+
+        if( r1cInitialized == false ) {
+            r1allocations( TGE + 20 * ONE_MONTH, 1e16 );
+
+            r1cInitialized = true;
+            emit LockboxesInitialized('r1c', lockboxes.length);
             return;
         }
     }
