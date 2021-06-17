@@ -28,14 +28,14 @@ abstract contract OwnerOperator {
     /**
      * @dev Returns the address of the current owner.
      */
-    function owner() public view virtual returns (address) {
+    function owner() public view returns (address) {
         return _owner;
     }
 
     /**
      * @dev Returns the address of the current operator.
      */
-    function operator() public view virtual returns (address) {
+    function operator() public view returns (address) {
         return _operator;
     }
 
