@@ -31,6 +31,7 @@ contract OpulousTokenVesting is OwnerOperator {
         lockboxes.push( Lockbox( beneficiary, amount, releaseTime ) ); 
     }
 
+    /** @dev Allow beneficiary or contract operator to transfer tokens to beneficiary. */ 
     function withdraw(uint lockboxId) public
     {
         Lockbox storage lb = lockboxes[lockboxId];
@@ -40,8 +41,8 @@ contract OpulousTokenVesting is OwnerOperator {
         require(lb.releaseTime <= block.timestamp, "Tokens have not been released yet" );
         uint amount = lb.balance;
         lb.balance = 0;
-        emit LockboxWithdrawal(msg.sender, amount);
-        require(token.transfer(msg.sender, amount));
+        emit LockboxWithdrawal(lb.beneficiary, amount);
+        require(token.transfer(lb.beneficiary, amount));
     }
 
     //
