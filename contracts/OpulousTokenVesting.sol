@@ -24,13 +24,6 @@ contract OpulousTokenVesting is OwnerOperator {
 
     constructor(address tokenContract) OwnerOperator( msg.sender ) {
         token = IERC20(tokenContract);
-
-        // testing!
-        lockboxes.push( Lockbox( msg.sender, 100, block.timestamp ) );
-        beneficiaryLockboxIdMap[ msg.sender ].push( lockboxes.length - 1 );
-
-        lockboxes.push( Lockbox( msg.sender, 10, block.timestamp ) );
-        beneficiaryLockboxIdMap[ msg.sender ].push( lockboxes.length - 1 );
     }
 
     // Support deposits after vesting contract creation
