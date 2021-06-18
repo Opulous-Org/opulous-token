@@ -5,7 +5,7 @@ import "./OwnerOperator.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract OpulousTokenVesting is OwnerOperator {
-    IERC20 token;
+    IERC20 public token;
 
     struct Lockbox {
         address beneficiary;
@@ -16,25 +16,43 @@ contract OpulousTokenVesting is OwnerOperator {
     // Numbered lockboxes support possibility of multiple tranches per address
     Lockbox[] public lockboxes;
 
-    event LockboxDeposit(address sender, uint amount, uint releaseTime);   
+    // Cache the lockbox ids for each benficiary to reduce gas
+    mapping(address => uint[]) public beneficiaryLockboxIdMap;
+
+    event LockboxDeposit(address beneficiary, uint amount, uint releaseTime);   
     event LockboxWithdrawal(address receiver, uint amount);
 
     constructor(address tokenContract) OwnerOperator( msg.sender ) {
         token = IERC20(tokenContract);
+
+        // testing!
+        lockboxes.push( Lockbox( msg.sender, 100, block.timestamp ) );
+        beneficiaryLockboxIdMap[ msg.sender ].push( lockboxes.length - 1 );
+
+        lockboxes.push( Lockbox( msg.sender, 10, block.timestamp ) );
+        beneficiaryLockboxIdMap[ msg.sender ].push( lockboxes.length - 1 );
     }
 
     // Support deposits after vesting contract creation
     function deposit(address beneficiary, uint amount, uint releaseTime) public 
     {
+        require(beneficiary != address(0), "Beneficiary is the zero address");
+        require(amount > 0, "Amount must be larger than zero");
+        require(releaseTime > block.timestamp, "Release time must be in the future");
+
+        lockboxes.push( Lockbox( beneficiary, amount, releaseTime ) );
+        beneficiaryLockboxIdMap[ beneficiary ].push( lockboxes.length - 1 );
+
         require(token.transferFrom(msg.sender, address(this), amount));
-        emit LockboxDeposit(msg.sender, amount, releaseTime);
-        lockboxes.push( Lockbox( beneficiary, amount, releaseTime ) ); 
+        emit LockboxDeposit(beneficiary, amount, releaseTime);
     }
 
     /** @dev Allow beneficiary or contract operator to transfer tokens to beneficiary. */ 
     function withdraw(uint lockboxId) public
     {
         Lockbox storage lb = lockboxes[lockboxId];
+        require(lb.releaseTime > 0, "Lockbox does not exist");
+        require(lb.balance > 0, "Lockbox has no balance remaining");
         require(
             lb.beneficiary == msg.sender 
             || operator() == msg.sender, "Cannot withdraw for another account" );
@@ -57,35 +75,15 @@ contract OpulousTokenVesting is OwnerOperator {
         return( lb.beneficiary, lb.balance, lb.releaseTime );   
     }
 
-    function countBeneficiaryLockboxes( address beneficiary )
+    function beneficiaryLockboxIds( address beneficiary )
         view public
-        returns( uint256 count )
+        returns( uint length, uint256[] memory lockboxIds )
     {
-        uint256 total = 0;
-        for( uint256 id = 0; id < lockboxes.length; id++ )
-            if( lockboxes[id].beneficiary == beneficiary )
-                total++;
-
-        return (total);
+        lockboxIds = beneficiaryLockboxIdMap[ beneficiary ];
+        return( lockboxIds.length, lockboxIds );
     }
 
-    function findBeneficiaryLockboxIds( address beneficiary )
-        view public
-        returns( uint256[] memory index )
-    {
-        uint256 count = countBeneficiaryLockboxes( beneficiary );
-        if( count == 0 )
-            return( new uint256[](0) );
-        
-        uint256[] memory result = new uint256[]( count );
-        for( uint256 id = 0; id < lockboxes.length; id++ )
-            if( lockboxes[id].beneficiary == beneficiary )
-                result[ --count ] = id;
-
-        return( result );
-    }
-
-    function totalVesting()
+    function currentBalance()
         view public
         returns(uint256 total)
     {

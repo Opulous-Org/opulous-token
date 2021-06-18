@@ -20,6 +20,8 @@ FYI https://www.trufflesuite.com/docs/truffle/quickstart
 	$ tv.address
 	$ tv.initializeLockboxes({gas:15000000}); 
 
+	$ let block = await web3.eth.getBlock(blockNum)
+
 ## Deploy
 
 1. Fresh build
